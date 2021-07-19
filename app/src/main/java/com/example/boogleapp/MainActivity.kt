@@ -1,24 +1,33 @@
 package com.example.boogleapp
 
+import android.content.Context
+import android.content.DialogInterface
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.text.InputType.TYPE_CLASS_NUMBER
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.GridView
-import android.widget.ListView
+import android.util.TypedValue
+import android.view.*
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import org.w3c.dom.Text
 import java.io.File
 import java.lang.Math.max
 import java.lang.Math.min
+import java.util.concurrent.TimeUnit
+
 
 class MainActivity : AppCompatActivity() {
 
     lateinit var gridView: GridView;
     lateinit var listView: ListView;
     lateinit var toolbar: Toolbar;
+    lateinit var timerText: TextView;
+    lateinit var timer: CountDownTimer;
+    private var timerRunning = false;
+
     var diceSet = arrayOf(
         "AAEIOT",
         "ABILRT",
@@ -52,14 +61,43 @@ class MainActivity : AppCompatActivity() {
         "A", "Q", "V", "T"
     )
 
+    private val sizesHashMap:HashMap<Int, Float> = HashMap<Int, Float>()
+
     private var wordsHashMap:HashMap<String,Int> = HashMap<String,Int>()
     private var prefixHashMap:HashMap<String,Int> = HashMap<String,Int>()
 
-    private val NROWS = 4;
-    private val NCOLS = 4;
+    private var NROWS = 4;
+    private var NCOLS = 4;
     private val SMALLEST_WORD_SIZE = 3;
     private var RETURN_LETTERS = false;
     private var GO_THROUGH_EDGES = false;
+    private var TIMER_SECONDS = 5*60.toLong();
+
+    inner class MyAdapter(private val context: Context, private val arrayList: Array<String>) : BaseAdapter() {
+        private lateinit var letter: TextView
+        override fun getCount(): Int {
+            return arrayList.size
+        }
+        override fun getItem(position: Int): Any {
+            return position
+        }
+        override fun getItemId(position: Int): Long {
+            return position.toLong()
+        }
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View? {
+            var convertView = convertView
+            convertView = LayoutInflater.from(context).inflate(R.layout.mytextview, parent, false)
+            letter = convertView.findViewById(R.id.letter)
+            letter.text = arrayList[position]
+            var size = sizesHashMap[NROWS]
+            if (size is Float) {
+                letter.setTextSize(size)
+            }else{
+                letter.setTextSize((70-(NROWS-3)*12).toFloat())
+            }
+            return convertView
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +108,18 @@ class MainActivity : AppCompatActivity() {
 
         gridView = findViewById(R.id.letterGrid);
         listView = findViewById(R.id.listWords);
+        timerText = findViewById(R.id.timerText)
+
+
+        init_timer()
+
+        sizesHashMap[3] = 70.toFloat()
+        sizesHashMap[4] = 60.toFloat()
+        sizesHashMap[5] = 54.toFloat()
+        sizesHashMap[6] = 45.toFloat()
+        sizesHashMap[7] = 41.toFloat()
+
+
         generate_grid();
         //val file_name = "OUT_WORDS.txt"
         //val bufferReader = application.assets.open(file_name).bufferedReader()
@@ -130,20 +180,46 @@ class MainActivity : AppCompatActivity() {
 
             clear_list_view();
         }
+        if (id==R.id.setTime){
+            onClickChangeTime();
+        }
+        if (id==R.id.setBoardSize){
+            onClickSetBoardSize();
+        }
         return false
 
+    }
+
+    fun initialize_timer_text(){
+        var txt = "%d:%02d"
+        txt = String.format(txt,
+            TimeUnit.SECONDS.toMinutes(TIMER_SECONDS),
+            TimeUnit.SECONDS.toSeconds(TIMER_SECONDS) -
+                    TimeUnit.MINUTES.toSeconds(TimeUnit.SECONDS.toMinutes(TIMER_SECONDS))
+        );
+        timerText.setText(txt)
     }
 
     fun generate_grid(){
         Log.d("salut", diceSet.joinToString())
         diceSet.shuffle()
         Log.d("salut", diceSet.joinToString())
-        for (i in letterGridValues.indices){
-            var curDice = diceSet.get(i)
-            val rnd_ind = (0..5).random()
-            letterGridValues[i] = curDice[rnd_ind].toString()
+        letterGridValues = Array(NROWS*NROWS){"0"}
+        if (NROWS == 4){
+            for (i in letterGridValues.indices){
+                var curDice = diceSet.get(i)
+                val rnd_ind = (0..5).random()
+                letterGridValues[i] = curDice[rnd_ind].toString()
+            }
+        }else{
+            for (i in 0 until NROWS*NROWS){
+                val rnd_dice = diceSet.get((0..diceSet.size-1).random())
+                val rnd_ind = (0..5).random()
+                letterGridValues[i] = rnd_dice[rnd_ind].toString()
+            }
         }
-        var arrAdapt = ArrayAdapter(this, R.layout.mytextview , letterGridValues )
+        var arrAdapt = MyAdapter(this, letterGridValues)
+
 
         gridView.setAdapter(arrAdapt);
 
@@ -157,6 +233,85 @@ class MainActivity : AppCompatActivity() {
 
     fun onClickSolve(view: View){
         solve_grid()
+    }
+    fun onClickTimer(view: View){
+        if (timerRunning) {
+            timer.cancel()
+            initialize_timer_text()
+            timerRunning = false
+        }else{
+            timerRunning = true
+            timer.start()
+        }
+    }
+
+    fun init_timer(){
+        timer = object: CountDownTimer((TIMER_SECONDS-1)*1000, 250) {
+            override fun onTick(millisUntilFinished: Long) {
+
+                var curmils = millisUntilFinished + 1000;
+
+                var txt = "%d:%02d"
+                txt = String.format(txt,
+                    TimeUnit.MILLISECONDS.toMinutes(curmils),
+                    TimeUnit.MILLISECONDS.toSeconds(curmils) -
+                            TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(curmils))
+                );
+                timerText.setText(txt)
+            }
+
+            override fun onFinish() {
+                timerText.setText("STOP")
+            }
+        }
+        initialize_timer_text()
+    }
+
+    fun onClickChangeTime(){
+        val builder = AlertDialog.Builder(this)
+        var input=EditText(this);
+        input.inputType = TYPE_CLASS_NUMBER;
+        builder.setTitle("Set time in seconds")
+        builder.setView(input)
+        //builder.setMessage("We have a message")
+        builder.setPositiveButton("OK", DialogInterface.OnClickListener(
+            function = fun (var1: DialogInterface, var2: Int) {
+                TIMER_SECONDS = input.getText().toString().toLong()
+                init_timer()
+            }
+            )
+        )
+
+        //builder.setPositiveButton(android.R.string.yes) { dialog, which ->
+        //    Toast.makeText(applicationContext,
+        //        android.R.string.yes, Toast.LENGTH_SHORT).show()
+        //}
+        builder.show()
+    };
+
+    fun onClickSetBoardSize(){
+        val builder = AlertDialog.Builder(this)
+        var input=EditText(this);
+        input.inputType = TYPE_CLASS_NUMBER;
+        builder.setTitle("Set board size (NROWS)")
+        builder.setView(input)
+        //builder.setMessage("We have a message")
+        builder.setPositiveButton("OK", DialogInterface.OnClickListener(
+            function = fun (var1: DialogInterface, var2: Int) {
+                NROWS = input.getText().toString().toInt()
+                NCOLS = NROWS;
+                gridView.numColumns = NROWS;
+                generate_grid()
+            }
+        )
+        )
+
+        //builder.setPositiveButton(android.R.string.yes) { dialog, which ->
+        //    Toast.makeText(applicationContext,
+        //        android.R.string.yes, Toast.LENGTH_SHORT).show()
+        //}
+        builder.show()
+
     }
 
     fun extending(prefix: String, path: Array<Pair<Int, Int>>): Array<String>{

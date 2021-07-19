@@ -20,5 +20,13 @@
         android:title="Go through edges"
         android:titleCondensed="Edges"
         android:visible="true" />
+    <item
+        android:id="@+id/setTime"
+        android:title="TimerSeconds"
+        android:visible="true"/>
+    <item
+        android:id="@+id/setBoardSize"
+        android:title="BoardSize"
+        android:visible="true"/>
 
 </menu>
