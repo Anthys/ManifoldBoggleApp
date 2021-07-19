@@ -98,6 +98,8 @@ class MainActivity : AppCompatActivity() {
 
         gridView.setAdapter(arrAdapt);
 
+        clear_list_view();
+
     }
 
     fun onClickGenerate(view: View){
@@ -164,5 +166,13 @@ class MainActivity : AppCompatActivity() {
 
         listView.setAdapter(arrAdapt);
 
+    }
+
+    fun clear_list_view(){
+        var blank_list = arrayOf<String>()
+
+        var arrAdapt = ArrayAdapter(this, android.R.layout.simple_list_item_1 , blank_list )
+
+        listView.setAdapter(arrAdapt);
     }
 }
