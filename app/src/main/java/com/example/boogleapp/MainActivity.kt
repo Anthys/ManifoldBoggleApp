@@ -2,11 +2,14 @@ package com.example.boogleapp
 
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.GridView
 import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import java.io.File
 import java.lang.Math.max
 import java.lang.Math.min
@@ -15,6 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var gridView: GridView;
     lateinit var listView: ListView;
+    lateinit var toolbar: Toolbar;
     var diceSet = arrayOf(
         "AAEIOT",
         "ABILRT",
@@ -41,16 +45,29 @@ class MainActivity : AppCompatActivity() {
         "A", "B", "C", "D",
     )
 
+    private var testGrid = arrayOf(
+        "N", "L", "Y", "A",
+        "F", "O", "U", "H",
+        "I", "O", "N", "D",
+        "A", "Q", "V", "T"
+    )
+
     private var wordsHashMap:HashMap<String,Int> = HashMap<String,Int>()
     private var prefixHashMap:HashMap<String,Int> = HashMap<String,Int>()
 
     private val NROWS = 4;
     private val NCOLS = 4;
     private val SMALLEST_WORD_SIZE = 3;
+    private var RETURN_LETTERS = false;
+    private var GO_THROUGH_EDGES = false;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
         gridView = findViewById(R.id.letterGrid);
         listView = findViewById(R.id.listWords);
         generate_grid();
@@ -85,6 +102,38 @@ class MainActivity : AppCompatActivity() {
         Log.d("salut", wordsHashMap["dkshqgui"].toString())
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menubar,menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected (item: MenuItem): Boolean{
+        val id = item.itemId
+
+        if (id == R.id.ReturnLetters){
+            RETURN_LETTERS = !RETURN_LETTERS;
+            Log.d("salut", RETURN_LETTERS.toString())
+            item.setChecked(RETURN_LETTERS)
+            return true
+        }
+        if (id == R.id.GoThroughEdges){
+            GO_THROUGH_EDGES = !GO_THROUGH_EDGES;
+            Log.d("salut", GO_THROUGH_EDGES.toString())
+            item.setChecked(GO_THROUGH_EDGES)
+            return true
+        }
+        if (id==R.id.action_settings){
+            letterGridValues = testGrid.clone()
+            var arrAdapt = ArrayAdapter(this, R.layout.mytextview , letterGridValues )
+
+            gridView.setAdapter(arrAdapt);
+
+            clear_list_view();
+        }
+        return false
+
+    }
+
     fun generate_grid(){
         Log.d("salut", diceSet.joinToString())
         diceSet.shuffle()
@@ -116,11 +165,11 @@ class MainActivity : AppCompatActivity() {
             solutions = solutions + arrayOf(prefix.uppercase())
         }
         val curpair = path.last()
-        Log.d("salut", "CUR_POS:"+curpair.toString())
+        //Log.d("salut", "CUR_POS:"+curpair.toString())
         for (pair in neighbors(curpair)){
-            if (!path.contains(pair)){
+            if ((path.last() != pair) && (RETURN_LETTERS || !path.contains(pair))){
                 val prefix1 = prefix + letterGridValues.get(pair.first+pair.second*NROWS).lowercase()
-                Log.d("salut", "TEST_PREFIX:"+prefix1)
+                //Log.d("salut", "TEST_PREFIX:"+prefix1)
                 if (prefixHashMap.get(prefix1) != null){
                     solutions = solutions + extending(prefix1, path + arrayOf(pair))
                 }
@@ -133,12 +182,20 @@ class MainActivity : AppCompatActivity() {
         var out = arrayOf<Pair<Int, Int>>()
         val x = node.first
         val y = node.second
-        for (i in max(0,x-1) until min(x+2, NCOLS)){
-            for (j in max(0,y-1) until min(y+2, NROWS)){
-                out=out+Pair(i, j)
+        if (!GO_THROUGH_EDGES) {
+            for (i in max(0, x - 1) until min(x + 2, NCOLS)) {
+                for (j in max(0, y - 1) until min(y + 2, NROWS)) {
+                    out = out + Pair(i, j)
+                }
+            }
+        }else{
+            for (i in x - 1 until x + 2) {
+                for (j in y - 1 until y + 2) {
+                    out = out + Pair(i.mod(NCOLS), j.mod(NROWS))
+                }
             }
         }
-        out.forEach { Log.d("salut", "NEIGHBORS_FOUND:"+it.toString()) }
+        //out.forEach { Log.d("salut", "NEIGHBORS_FOUND:"+it.toString()) }
 
         return out
     }
@@ -150,9 +207,9 @@ class MainActivity : AppCompatActivity() {
             for (j in 0 until NCOLS){
                 val startPos = Pair(i,j)
                 val letter = letterGridValues.get(i+j*NROWS).lowercase()
-                Log.d("salut", "STARTING_LETTER:"+letter)
+                //Log.d("salut", "STARTING_LETTER:"+letter)
                 val cur_solutions = extending(letter, arrayOf(startPos))
-                Log.d("salut", "END_LETTER_SOLUTIONS:"+cur_solutions.size.toString())
+                //Log.d("salut", "END_LETTER_SOLUTIONS:"+cur_solutions.size.toString())
                 wordsFound = wordsFound + cur_solutions;
             }
 
