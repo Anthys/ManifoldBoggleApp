@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var timer: CountDownTimer;
     private var timerRunning = false;
 
-    var diceSet = arrayOf(
+    val diceSet = arrayOf(
         "AAEIOT",
         "ABILRT",
         "ABJMOQ",
@@ -45,6 +45,34 @@ class MainActivity : AppCompatActivity() {
         "EILRUW",
         "EKNOTU",
         "ELPSTU"
+    )
+
+    val diceSet5 = arrayOf(
+        "MDNSNH",
+        "GFSTEY",
+        "LMTRXS",
+        "TTRSCH",
+        "BMLNDL",
+        "TMRDBT",
+        "EIUEAO",
+        "RLXSSB",
+        "NAATEQ",
+        "TCJFSH",
+        "IEEAOA",
+        "NDHSNM",
+        "IAAIEO",
+        "OEUEIA",
+        "LCPRJS",
+        "DSTLSM",
+        "NKLPFN",
+        "DWRNLP",
+        "RZNNTQ",
+        "RGLRVF",
+        "RVCGRT",
+        "IIOEAE",
+        "EUIAEO",
+        "UIAEOA",
+        "NSEVAE"
     )
 
     private var letterGridValues = arrayOf(
@@ -208,6 +236,13 @@ class MainActivity : AppCompatActivity() {
         if (NROWS == 4){
             for (i in letterGridValues.indices){
                 var curDice = diceSet.get(i)
+                val rnd_ind = (0..5).random()
+                letterGridValues[i] = curDice[rnd_ind].toString()
+            }
+        }else if (NROWS==5){
+            diceSet5.shuffle()
+            for (i in letterGridValues.indices){
+                var curDice = diceSet5.get(i)
                 val rnd_ind = (0..5).random()
                 letterGridValues[i] = curDice[rnd_ind].toString()
             }
