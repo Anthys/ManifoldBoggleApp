@@ -2,6 +2,7 @@ package com.example.boogleapp
 
 import android.content.Context
 import android.content.DialogInterface
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.text.InputType.TYPE_CLASS_NUMBER
@@ -93,13 +94,14 @@ class MainActivity : AppCompatActivity() {
 
     private var wordsHashMap:HashMap<String,Int> = HashMap<String,Int>()
     private var prefixHashMap:HashMap<String,Int> = HashMap<String,Int>()
+    private var wordsFound = arrayOf<String>()
 
     private var NROWS = 4;
     private var NCOLS = 4;
-    private val SMALLEST_WORD_SIZE = 3;
+    private var SMALLEST_WORD_SIZE = 3;
     private var RETURN_LETTERS = false;
     private var GO_THROUGH_EDGES = false;
-    private var TIMER_SECONDS = 5*60.toLong();
+    private var TIMER_SECONDS = 3*60.toLong();
 
     inner class MyAdapter(private val context: Context, private val arrayList: Array<String>) : BaseAdapter() {
         private lateinit var letter: TextView
@@ -117,7 +119,14 @@ class MainActivity : AppCompatActivity() {
             convertView = LayoutInflater.from(context).inflate(R.layout.mytextview, parent, false)
             letter = convertView.findViewById(R.id.letter)
             letter.text = arrayList[position]
-            var size = sizesHashMap[NROWS]
+
+            var delta_index = 0;
+            var orientation = getResources().getConfiguration().orientation;
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                delta_index = 100;
+            }
+
+            var size = sizesHashMap[NROWS+delta_index]
             if (size is Float) {
                 letter.setTextSize(size)
             }else{
@@ -127,17 +136,55 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle){
+        outState.putInt("boardSize", NROWS);
+        outState.putInt("smallestWordSize", SMALLEST_WORD_SIZE);
+        outState.putBoolean("returnLetters", RETURN_LETTERS);
+        outState.putBoolean("goThroughEdges", GO_THROUGH_EDGES);
+        outState.putLong("timeSeconds", TIMER_SECONDS);
+        outState.putStringArray("wordsFound", wordsFound);
+        outState.putStringArray("gridLetters", letterGridValues);
+        super.onSaveInstanceState(outState);
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupAll()
+
+        if(savedInstanceState != null){
+            Log.d("salut", "RELOAD")
+            var a = savedInstanceState.getStringArray("gridLetters")
+            if (a != null) {
+                letterGridValues = a
+            };
+            var b = savedInstanceState.getStringArray("wordsFound")
+            if (b != null) {
+                wordsFound = b
+            };
+            NROWS = savedInstanceState.getInt("boardSize");
+
+            SMALLEST_WORD_SIZE = savedInstanceState.getInt("smallestWordSize");
+            RETURN_LETTERS= savedInstanceState.getBoolean("returnLetters");
+            GO_THROUGH_EDGES= savedInstanceState.getBoolean("goThroughEdges");
+            TIMER_SECONDS = savedInstanceState.getLong("timeSeconds");
+
+            show_grid()
+            show_solutions()
+        }else{
+            firstLaunch()
+        }
+
+    }
+
+    fun setupAll(){
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         gridView = findViewById(R.id.letterGrid);
         listView = findViewById(R.id.listWords);
         timerText = findViewById(R.id.timerText)
-
 
         init_timer()
 
@@ -147,21 +194,19 @@ class MainActivity : AppCompatActivity() {
         sizesHashMap[6] = 45.toFloat()
         sizesHashMap[7] = 41.toFloat()
 
+        sizesHashMap[100+3] = 54.toFloat()
+        sizesHashMap[100+4] = 50.toFloat()
+        sizesHashMap[100+5] = 40.toFloat()
+        sizesHashMap[100+6] = 33.toFloat()
+        sizesHashMap[100+7] = 28.toFloat()
 
-        generate_grid();
-        //val file_name = "OUT_WORDS.txt"
-        //val bufferReader = application.assets.open(file_name).bufferedReader()
-        //val data = bufferReader.use {
-        //    it.readText()
-        //}
-        //Log.d("salut", data);
 
         Log.d("salut", "ReadWordsBegin")
 
         val file_name_WORDS = "OUT_WORDS.txt"
         val bufferReader_WORDS = application.assets.open(file_name_WORDS).bufferedReader()
         val data_WORDS = bufferReader_WORDS.useLines {
-            lines -> lines.forEach { wordsHashMap.put(it, 1) }
+                lines -> lines.forEach { wordsHashMap.put(it, 1) }
         }
         //lineList.forEach { Log.d("salut",">  " + it) }
         Log.d("salut", "ReadWordsDone")
@@ -178,6 +223,24 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("salut", wordsHashMap["habile"].toString())
         Log.d("salut", wordsHashMap["dkshqgui"].toString())
+
+    }
+
+    fun firstLaunch(){
+        reset_grid()
+        //val file_name = "OUT_WORDS.txt"
+        //val bufferReader = application.assets.open(file_name).bufferedReader()
+        //val data = bufferReader.use {
+        //    it.readText()
+        //}
+        //Log.d("salut", data);
+
+    }
+
+    fun reset_grid(){
+        generate_grid()
+        show_grid()
+        clear_list_view()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -253,17 +316,17 @@ class MainActivity : AppCompatActivity() {
                 letterGridValues[i] = rnd_dice[rnd_ind].toString()
             }
         }
-        var arrAdapt = MyAdapter(this, letterGridValues)
-
-
-        gridView.setAdapter(arrAdapt);
-
-        clear_list_view();
 
     }
 
+    fun show_grid(){
+        gridView.numColumns = NROWS;
+        var arrAdapt = MyAdapter(this, letterGridValues)
+        gridView.setAdapter(arrAdapt);
+    }
+
     fun onClickGenerate(view: View){
-        generate_grid()
+        reset_grid()
     }
 
     fun onClickSolve(view: View){
@@ -335,8 +398,7 @@ class MainActivity : AppCompatActivity() {
             function = fun (var1: DialogInterface, var2: Int) {
                 NROWS = input.getText().toString().toInt()
                 NCOLS = NROWS;
-                gridView.numColumns = NROWS;
-                generate_grid()
+                reset_grid()
             }
         )
         )
@@ -391,7 +453,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun solve_grid(){
-        var wordsFound = arrayOf<String>()
+        wordsFound = arrayOf<String>();
+        Log.d("salut", letterGridValues.toString())
 
         for (i in 0 until NROWS){
             for (j in 0 until NCOLS){
@@ -406,6 +469,12 @@ class MainActivity : AppCompatActivity() {
         }
         wordsFound.sort()
         wordsFound.sortWith(compareByDescending { it.length })
+
+        show_solutions()
+
+    }
+
+    fun show_solutions(){
         val final = wordsFound.distinct()
 
 
@@ -421,5 +490,6 @@ class MainActivity : AppCompatActivity() {
         var arrAdapt = ArrayAdapter(this, android.R.layout.simple_list_item_1 , blank_list )
 
         listView.setAdapter(arrAdapt);
+        wordsFound = arrayOf<String>()
     }
 }
